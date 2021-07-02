@@ -43,8 +43,14 @@ set_property(TARGET 06 PROPERTY
 )
 
 
-add_executable(07 07.cpp)
+add_executable(07 07_parse_str.cpp)
 set_property(TARGET 07 PROPERTY 
+  CXX_STANDARD 20
+  CXX_STANDARD_REQUIRED ON
+)
+
+add_executable(08 08_json.cpp)
+set_property(TARGET 08 PROPERTY 
   CXX_STANDARD 20
   CXX_STANDARD_REQUIRED ON
 )

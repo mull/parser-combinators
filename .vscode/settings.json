@@ -3,6 +3,9 @@
     "tuple": "cpp",
     "iosfwd": "cpp",
     "variant": "cpp",
-    "utility": "cpp"
+    "utility": "cpp",
+    "string": "cpp",
+    "functional": "cpp",
+    "array": "cpp"
   }
 }

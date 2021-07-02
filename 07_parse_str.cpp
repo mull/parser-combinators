@@ -3,7 +3,7 @@
 #include <iostream>
 #include <variant>
 
-// orElse
+// Time to take it further with parse_str
 
 using namespace std;
 
@@ -23,6 +23,18 @@ auto pchar(char match) {
     }
 
     return Failure { "Unexpected character" };
+  };
+}
+
+auto pstr(const string match) {
+  return [match](const string& input) -> Result {
+    if (input.length() < match.length()) return Failure { "Not enough input" };
+    const auto result = input.substr(0, match.length());
+    if (result != match) {
+      return Failure { "Does not match" };
+    }
+
+    return Success { result, input.substr(match.length()) };
   };
 }
 
@@ -67,17 +79,16 @@ auto orElse(Parser a, Parser b) {
 }
 
 int main() {
-  auto parseA = pchar('A');
-  auto parseB = pchar('B');
-  auto parseC = pchar('C');
+  auto parseABC = pstr("ABC");
+  std::cout << "\"ABCQ\" " << parseABC("ABC") << "\n";
+  std::cout << "\"ABB\" " << parseABC("ABB") << "\n";
+  std::cout << "\"BBC\" " << parseABC("BBC") << "\n";
 
-  auto bOrElseC = orElse(parseB, parseC);
-  auto aAndThenBOrC = andThen(parseA, bOrElseC);
-
-  std::cout << "\"ABZ\" " << aAndThenBOrC("ABZ") << "\n";
-  std::cout << "\"ACZ\" " << aAndThenBOrC("ACZ") << "\n";
-  std::cout << "\"QBZ\" " << aAndThenBOrC("QBZ") << "\n";
-  std::cout << "\"AQZ\" " << aAndThenBOrC("AQZ") << "\n";
+  std::cout << "orElse(parseStr(ABC), parseStr(BBC)" << "\n";
+  auto parseABCOrBBC = orElse(pstr("ABC"), pstr("BBC"));
+  std::cout << "\"ABC\" " << parseABCOrBBC("ABC") << "\n";
+  std::cout << "\"BBC\" " << parseABCOrBBC("BBC") << "\n";
+  std::cout << "\"ACB\" " << parseABCOrBBC("ACB") << "\n";
 
   return 0;
 }
