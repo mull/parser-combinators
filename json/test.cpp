@@ -121,9 +121,9 @@ SCENARIO("String") {
         REQUIRE( is_success(json::string(wrap("\\uADED"))) );
         REQUIRE( is_success(json::string(wrap("\\uBEEF"))) );
 
-        REQUIRE( is_failure(json::string(wrap("\\udead"))) );
-        REQUIRE( is_failure(json::string(wrap("\\ufeec"))) );
-        REQUIRE( is_failure(json::string(wrap("\\DeaD"))) );
+        REQUIRE( is_success(json::string(wrap("\\udead"))) );
+        REQUIRE( is_success(json::string(wrap("\\ufeec"))) );
+        REQUIRE( is_success(json::string(wrap("\\uDeaD"))) );
     }
 
     GIVEN("A few random strings") {

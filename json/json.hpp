@@ -4,8 +4,6 @@
 
 namespace json {
 
-const auto any = [](const char in) -> bool { return true; };
-
 const auto digit = [](const char in) -> bool {
     return in >= '0' && in <= '9';
 };
@@ -61,7 +59,8 @@ const auto number = parsec::seq::andThen({
 
 const auto hex = parsec::match::ch_fn([](const char in) -> bool {
     return (in >= '0' && in <= '9')
-        || (in >= 'A' && in <= 'F');
+        || (in >= 'A' && in <= 'F')
+        || (in >= 'a' && in <= 'f');
 });
 
 const auto unicode_str = parsec::seq::andThen({
