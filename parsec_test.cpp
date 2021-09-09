@@ -83,3 +83,28 @@ TEST_CASE("seq::xImplies") {
 
   REQUIRE ( is_failure(xThenY("xy") ));
 }
+
+TEST_CASE("match::oneOf") {
+  const auto xOrElseY = parsec::match::oneOf({
+    parsec::match::ch('x'),
+    parsec::match::ch('Y')
+  });
+
+  REQUIRE ( is_success(xOrElseY("xz") ));
+  REQUIRE ( is_success(xOrElseY("Yz") ));
+  REQUIRE ( is_failure(xOrElseY("yx") ));
+  REQUIRE ( is_failure(xOrElseY("zx") ));
+
+
+  const auto JSONStringChar = parsec::match::oneOf({
+    parsec::match::ch_fn([](const char in) { return in != '"' && in != '\\'; }),
+    parsec::seq::xImplies({
+        parsec::match::ch('\\'),
+        parsec::match::ch('"'),
+    })
+  });
+
+  REQUIRE ( is_success(JSONStringChar("a") ));
+  REQUIRE ( is_success(JSONStringChar("\\\"") ));
+}
+

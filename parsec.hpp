@@ -58,8 +58,7 @@ namespace match {
       if (input[0] == match) {
         return Success { {match}, input.substr(1) };
       }
-
-      return Failure { "NEIN" };
+      return Failure { std::string("No match for character '") + std::string(1, match) + std::string("'") };
     };
   }
 
@@ -86,7 +85,18 @@ namespace match {
 
       return Failure { "No match" };
     };
-  };
+  }
+
+  Parser oneOf(const std::vector<Parser> parsers) {
+    return [parsers](const string input) -> Result {
+      for (const auto p : parsers) {
+        const auto p_res = p(input);
+        if (std::holds_alternative<Success>(p_res)) return p_res;
+      }
+
+      return Failure { "No alternative worked." };
+    };
+  }
 }
 
 namespace seq {
@@ -104,17 +114,6 @@ namespace seq {
       }
 
       return Success { result, remaining };
-    };
-  }
-
-  Parser orElse(const std::vector<Parser> parsers) {
-    return [parsers](const string input) -> Result {
-      for (const auto p : parsers) {
-        const auto p_res = p(input);
-        if (std::holds_alternative<Success>(p_res)) return p_res;
-      }
-
-      return Failure { "No alternative worked." };
     };
   }
 
@@ -153,6 +152,9 @@ namespace seq {
         if (std::holds_alternative<Failure>(p_res)) break;
 
         const auto s = std::get<Success>(p_res);
+        // TODO: Use Maybe instead?
+        if (std::get<0>(s).length() == 0) break;
+
         result.append(std::get<0>(s));
         remaining = remaining.substr(std::get<0>(s).length());
       }
@@ -170,6 +172,8 @@ namespace seq {
 
   If the first parser succeeds then the second one must also succeed.
   If the first one fails, then the second one does not matter.
+
+  TODO: xImplies and oneOf are not usable together if xImplies is the first argument (it returns Success even if it matches nothing)
   */
  Parser xImplies(const std::array<Parser, 2> parsers) {
     return [parsers](const string input) -> Result {
