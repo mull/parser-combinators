@@ -4,8 +4,13 @@
 using namespace parsec;
 
 
-const auto is_success = [](const Result r) -> bool {
-    return std::holds_alternative<Success>(r);
+const auto is_success = [](
+  const Result r, 
+  std::optional<std::string> match = nullopt, 
+  std::optional<std::string> remaining = nullopt
+) -> bool {
+  return std::holds_alternative<Success>(r) &&
+    (!match ? true : match.value() == std::get<0>(std::get<Success>(r)));
 };
 
 const auto is_failure = [](const Result r) -> bool { return std::holds_alternative<Failure>(r); };
@@ -21,6 +26,7 @@ const auto result_eq = [](const Result r, std::string matched, std::string remai
 
 const auto matcher_A = [](const char in) { return in == 'A'; };
 const auto parser_A = parsec::match::ch_fn(matcher_A);
+
 
 TEST_CASE("match::ch_fn") {
   REQUIRE( is_success(parser_A("A")) );
@@ -108,3 +114,36 @@ TEST_CASE("match::oneOf") {
   REQUIRE ( is_success(JSONStringChar("\\\"") ));
 }
 
+TEST_CASE("match::until") {
+  const auto breakAt = parsec::match::ch('"');
+  const auto untilThen = parsec::match::ch_fn([](const char in) -> bool { return in >= '1' && in <= '9'; });
+
+  const auto parser = parsec::match::until(breakAt, untilThen);
+  
+  REQUIRE ( is_success(parser("1247124124\"123123")) );
+}
+
+
+
+TEST_CASE("match::repeatedly") {
+  GIVEN( "no delimiter" ) {
+    const auto parser = parsec::match::repeatedly(parsec::match::str("foobar"));
+
+    REQUIRE( is_success(parser("foobar")) );
+    REQUIRE( is_success(parser("foobarfoobar")) );
+    REQUIRE( is_failure(parser("notthatfoobar")) );
+    REQUIRE( is_success(parser("foobarbarfoo")) );
+  }
+
+  GIVEN( "a delimiter" ) {
+    const auto element = parsec::match::ch_fn([](const char in) { return in >= '0' && in <= '9'; });
+    const auto delimiter = parsec::match::str(", ");
+    const auto parser = parsec::match::repeatedly(element, delimiter);
+
+    REQUIRE( is_success(parser("5"), "5") );
+    REQUIRE( is_success(parser("1, 5, 1"), "1, 5, 1") );
+    REQUIRE( is_failure(parser("1, ")) );
+    REQUIRE( is_failure(parser("1, 5, ")) );
+    REQUIRE( is_failure(parser(", 1")) );
+  }
+}

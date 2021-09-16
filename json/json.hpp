@@ -73,9 +73,9 @@ const auto unicode_str = parsec::seq::andThen({
 
 const auto string = parsec::seq::andThen({
     parsec::match::ch('"'),
-    parsec::seq::any(
+    parsec::match::until(
+        parsec::match::ch('"'),
         parsec::match::oneOf({
-            parsec::match::ch_fn([](const char in) { return in != '"' && in != '\\'; }),
             parsec::seq::andThen({
                 parsec::match::ch('\\'),
                 parsec::match::oneOf({
@@ -89,10 +89,96 @@ const auto string = parsec::seq::andThen({
                     parsec::match::ch('t'), // formfeed
                     unicode_str,
                 })
-            })
+            }),
+            parsec::match::ch_fn([](const char in) { return in != '\\'; })
         })
     )
-    ,
-    parsec::match::ch('"'),
 });
+
+const auto whitespace = parsec::seq::any(
+    parsec::match::oneOf({
+        parsec::match::ch(' '),
+        parsec::match::ch('\t'),
+        parsec::match::ch('\n'),
+        parsec::match::ch('\r'),
+    })
+);
+
+
+parsec::Parser make_object(const parsec::Parser& value) {
+    return parsec::seq::andThen({
+        parsec::match::ch('{'),
+        parsec::seq::any(
+            parsec::match::oneOf({
+                parsec::match::repeatedly(
+                    parsec::seq::andThen({
+                        parsec::seq::any(whitespace),
+                        string,
+                        parsec::seq::any(whitespace),
+                        parsec::match::ch(':'),
+                        parsec::seq::any(whitespace),
+                        value,
+                        parsec::seq::any(whitespace),
+                    }),
+                    parsec::seq::andThen({
+                        parsec::seq::any(whitespace),
+                        parsec::match::ch(','),
+                        parsec::seq::any(whitespace),
+                    })
+                ),
+                parsec::seq::any(whitespace)
+            })
+        ),
+        parsec::match::ch('}'),
+    });
 }
+
+parsec::Parser make_array(const parsec::Parser& value) {
+    return parsec::seq::andThen({
+        parsec::match::ch('['),
+        parsec::seq::any(
+            parsec::match::oneOf({
+                parsec::match::repeatedly(
+                    parsec::seq::andThen({
+                        parsec::seq::any(whitespace),
+                        value,
+                        parsec::seq::any(whitespace)
+                    }),
+                    parsec::seq::andThen({
+                        parsec::seq::any(whitespace),
+                        parsec::match::ch(','),
+                        parsec::seq::any(whitespace),
+                    })
+                ),
+                parsec::seq::any(whitespace)
+            })
+        ),
+        parsec::match::ch(']')
+    });
+}
+
+
+parsec::Parser parser() {
+    using namespace parsec;
+
+    // We need a lambda here to keep obj and array in memory
+    // The circular dependencies between obj<>array<>value are tricky
+    return [](const std::string in) {
+        Parser obj;
+        Parser array;
+
+        Parser value = match::oneOf({
+            string,
+            number,
+            [&obj](const auto in) { return obj(in); },
+            [&array](const auto in) { return array(in); }
+        });
+        obj = make_object(value);
+        array = make_array(value);
+
+        return value(in);
+    };
+}
+
+} // namespace json
+

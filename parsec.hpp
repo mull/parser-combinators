@@ -6,6 +6,8 @@
 #include <concepts>
 #include <vector>
 #include <iostream>
+#include <type_traits>
+#include <optional>
 
 
 namespace parsec {
@@ -15,9 +17,9 @@ using Failure = string;
 using Success = pair<string, string>;
 
 using Result = variant<Success, Failure>;
-// TODO: I think it ought to take a char
+
 using Parser = function<Result(const string)>;
-  using Matcher = function<bool(const char in)>;
+using Matcher = function<bool(const char in)>;
 
 
 std::ostream& operator<< (std::ostream &out, const parsec::Result &res) {
@@ -45,7 +47,7 @@ namespace match {
 
   Parser ch_fn(const Matcher m) {
     return [m](const string input) -> Result {
-      if (input.length() == 0) return Failure { "No input" };
+      if (input.length() == 0) return Failure { "ch_fn: No input" };
       if (m(input[0])) return Success { {input[0]}, input.substr(1) };
 
       return Failure { "" };
@@ -54,11 +56,11 @@ namespace match {
 
   Parser ch(const char match) {
     return [match](const string input) -> Result {
-      if (input.length() == 0) return Failure {"No input"};
+      if (input.length() == 0) return Failure {"ch: No input"};
       if (input[0] == match) {
         return Success { {match}, input.substr(1) };
       }
-      return Failure { std::string("No match for character '") + std::string(1, match) + std::string("'") };
+      return Failure { std::string("ch: No match for '") + std::string(1, match) };
     };
   }
 
@@ -76,7 +78,7 @@ namespace match {
     // TODO: static_assert(match.length() > 0); if possible?
 
     return [match](const string input) -> Result {
-      if (input.length() < match.length()) return Failure {"No input"};
+      if (input.length() < match.length()) return Failure {"ch: No input"};
 
       const string result = input.substr(0, match.length());
       if (result == match) {
@@ -95,6 +97,69 @@ namespace match {
       }
 
       return Failure { "No alternative worked." };
+    };
+  }
+
+  Parser until(const Parser breakPoint, const Parser untilThen) {
+    return [breakPoint, untilThen](const string input) -> Result {
+      std::string result {""};
+      auto remaining { input };
+
+      while (true) {
+        if (remaining.length() == 0) { return Failure { "until: No more input" }; }
+
+        const auto b_res = breakPoint(remaining);
+        if (std::holds_alternative<Failure>(b_res)) {
+          const auto u_res = untilThen(remaining);
+          if (std::holds_alternative<Failure>(u_res)) {
+            return u_res;
+          }
+
+          const auto u = std::get<Success>(u_res);
+          result.append(std::get<0>(u));
+          remaining = remaining.substr(std::get<0>(u).length());
+        } else {
+          const auto b = std::get<Success>(b_res);
+          result.append(std::get<0>(b));
+          return Success { result, remaining.substr(std::get<0>(b).length()) };
+        }
+      }
+    };
+  }
+
+  Parser repeatedly(const Parser matchOn, std::optional<Parser> joinedBy = std::nullopt) {
+    return [matchOn, joinedBy](const string input) -> Result {
+      std::string remaining { input };
+      std::string match { "" };
+
+      std::string appendage { "" };
+
+      while (true) {
+        if (remaining.length() == 0) break;
+
+        const auto m_res = matchOn(remaining);
+        if (std::holds_alternative<Failure>(m_res)) break;
+
+        const auto m = std::get<Success>(m_res);
+        match.append(appendage);
+        appendage = "";
+        match.append(std::get<0>(m));
+        remaining = std::get<1>(m);
+
+        if (joinedBy) {
+          const auto j_res = joinedBy.value()(remaining);
+          if (std::holds_alternative<Failure>(j_res)) break;
+
+          const auto j = std::get<Success>(j_res);
+          // match.append(std::get<0>(j));
+          appendage = std::get<0>(j);
+          remaining = std::get<1>(j);
+        }
+      }
+
+      if (match.length() == 0) return Failure { "repatedly: no match" };
+      if (appendage.length() != 0) return Failure { "repeatedly: dangling appendage" };
+      return Success { match, remaining };
     };
   }
 }
@@ -177,21 +242,21 @@ namespace seq {
   */
  Parser xImplies(const std::array<Parser, 2> parsers) {
     return [parsers](const string input) -> Result {
-      const auto f_res = parsers[0](input);
+        const auto f_res = parsers[0](input);
 
-      if (std::holds_alternative<Failure>(f_res)) return Success { "", input };
-      const auto f = std::get<Success>(f_res);
-      auto build { std::get<0>(f) };
+        if (std::holds_alternative<Failure>(f_res)) return Success { "", input };
+        const auto f = std::get<Success>(f_res);
+        auto build { std::get<0>(f) };
 
-      const auto s_res = parsers[1](input.substr(build.length()));
-      // TODO: Combined error message somehow
-      if (std::holds_alternative<Failure>(s_res)) return s_res;
-      const auto s = std::get<Success>(s_res);
-      build.append(std::get<0>(s));
+        const auto s_res = parsers[1](input.substr(build.length()));
+        // TODO: Combined error message somehow
+        if (std::holds_alternative<Failure>(s_res)) return s_res;
+        const auto s = std::get<Success>(s_res);
+        build.append(std::get<0>(s));
 
-      return Success { build, std::get<1>(s) };
+        return Success { build, std::get<1>(s) };
     };
- }
+  }
 }
 
 }

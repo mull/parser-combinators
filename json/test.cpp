@@ -12,8 +12,8 @@ const auto is_success = [](const Result r) -> bool {
 };
 
 const auto is_failure = [](const Result r) -> bool { return std::holds_alternative<Failure>(r); };
-
 const auto number = json::number;
+const auto parse_json = json::parser();
 
 SCENARIO("Number") {
     GIVEN("A positive integer") {
@@ -89,6 +89,7 @@ SCENARIO("String") {
         return "\"" + in + "\"";
     };
 
+
     GIVEN("An unmatched starting quotation mark") {
         REQUIRE( is_failure(json::string("\"")) );
     }
@@ -128,5 +129,76 @@ SCENARIO("String") {
 
     GIVEN("A few random strings") {
         REQUIRE( is_success(json::string(wrap("Now\\nis\\btheWinter\\r\\tOfOur\"discontent"))) );
+    }
+
+    GIVEN("A string with an incorrect terminator") {
+        // It is not up to json::string to match anything outside the actual string
+        // So this is still successful
+        REQUIRE( is_success(json::string(wrap("This is inside\"Suddenly outside"))) );
+    }
+}
+
+
+TEST_CASE("whitespace") {
+    REQUIRE( is_success(json::whitespace(" ")) );
+    REQUIRE( is_success(json::whitespace("\t")) );
+    REQUIRE( is_success(json::whitespace("\n")) );
+    REQUIRE( is_success(json::whitespace("\r")) );
+}
+
+TEST_CASE("object") {
+    const auto parser = json::parser();
+
+    GIVEN("Empty object") {
+        REQUIRE( is_success(parser("{}")) );
+        REQUIRE( is_success(parser("{ }")) );
+        REQUIRE( is_success(parser("{\t}")) );
+        REQUIRE( is_success(parser("{\t\n}")) );
+        REQUIRE( is_success(parser("{\t\r\n}")) );
+    }
+
+    GIVEN("Key") {
+        REQUIRE( is_success(parser("{ \"foo\": 1}")) );
+        REQUIRE( is_success(parser("{ \"foo\" : 1}")) );
+        REQUIRE( is_success(parser("{\"foo\":    1}")) );
+        REQUIRE( is_success(parser("{\"key\": 1337}")));
+    }
+
+    GIVEN("Value") {
+        WHEN("Is a string") {
+            REQUIRE( is_success(parser("{ \"foo\": \"bar\"}")) );
+        }
+
+        WHEN("Is a number") {
+            REQUIRE( is_success(parser("{ \"foo\": -421.123e-124}")) );
+        }
+
+        WHEN("Is an object") {
+            REQUIRE( is_success(parser("{ \"foo\": {\"bar\": \"foobar\"}}")) );
+        }
+    }
+
+    GIVEN("Multiple keys") {
+        REQUIRE( is_success(parser("{\"foo\": \"bar\", \"bar\": \"foo\"}")) );
+    }
+}
+
+
+SCENARIO("Array") {
+    GIVEN("Empty array") {
+        REQUIRE( is_success(parse_json("[]")) );
+        REQUIRE( is_success(parse_json("[ ]")) );
+        REQUIRE( is_success(parse_json("[\t]")) );
+        REQUIRE( is_success(parse_json("[\t\n]")) );
+        REQUIRE( is_success(parse_json("[\t\r\n]")) );
+    }
+
+    GIVEN("Value") {
+        REQUIRE( is_success(parse_json("[1]")) );
+        REQUIRE( is_success(parse_json("[1.23e-1]")) );
+        REQUIRE( is_success(parse_json("[\"a string\"]")) );
+        REQUIRE( is_success(parse_json("[{\"key\": \"value\"}]")) );
+        REQUIRE( is_success(parse_json("[[[[]]]]")) );
+        REQUIRE( is_success(parse_json("[[[[123]]]]")) );
     }
 }

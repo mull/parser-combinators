@@ -1,5 +1,5 @@
 #include "../parsec.hpp"
-#include "./json.hpp"
+// #include "./json.hpp"
 
 #include <iostream>
 
@@ -7,19 +7,22 @@
 
 
 int main() {
+  using namespace parsec;
 
-  // std::cout << "json_null(NULL) " << json_null("NULL") << "\n";
-  // std::cout << "json_null(NULl) " << json_null("NULl") << "\n";
+  parsec::Parser object;
+  parsec::Parser array;
 
-  std::cout << "json_string(\"\") " << json::string("\"\"") << "\n";
-  std::cout << "json_string(\"a\") " << json::string("\"a\"") << "\n";
-  std::cout << "json_string(\"asd\") " << json::string("\"asd\"") << "\n";
+  array = [&object](const std::string in) {
+    return parsec::Failure { " No good " };
+  };
 
-  std::cout << "json_object({}) " << json::object("{}") << "\n";
-  std::cout << "json_object({]) " << json::object("{]") << "\n";
+  object = [&array](const std::string in) {
+    return array(in);
+  };
 
-  std::cout << "json_object([}) " << json::object("{]") << "\n";
-  std::cout << "json_object({\"key\": \"value\"}) " << json::object("{\"key\": \"value\"") << "\n";
+  const auto res = object("foo");
+
+  std::cout << res << "\n";
 
   return 0;
 } 
